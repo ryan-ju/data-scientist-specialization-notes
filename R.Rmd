@@ -1,0 +1,142 @@
+---
+title: "R Study Notes"
+output:
+  html_document:
+    toc: true
+    theme: united
+---
+Exploratory Data Analysis
+=========================
+## Load large csv file
+* Ref: https://class.coursera.org/exdata-014/forum/thread?thread_id=194
+```
+# Load the first 2 lines of the data file to get the col names and classes
+data <- read.table("household_power_consumption.txt", stringsAsFactors = FALSE, 
+                   header = TRUE, sep=";", na.strings = "?", nrows = 2)
+dataClasses <- sapply(data, class)
+```
+
+## ggplot2 basics
+Components of ggplot2
+* data
+* aes (aesthetics)
+* stats
+* geom
+* facets
+* scales (what scale an aesthetic map uses)
+* coordinate system
+
+Simple plot
+```
+qplot()
+```
+
+Add a regression line
+```
+g + geom_smooth(method = "lm", formula = y ~ x)
+```
+
+Regression Models
+=================
+
+## Useful commands
+```
+# Coefficient of model
+coef(model)
+
+# Summary of model
+summary(model)
+
+# Residual
+resid(model)
+```
+
+## t-distribution
+If $X_i$ for $1<=i<=n$ are iid normal random variables, with unknown $\theta$ and $\sigma$, and $\hat{\Theta}_n := {1 \over n} \sum_{i=1}^{n} X_i$ (the random variable of the sample mean) and $\hat{S}_i^2 := {1 \over {n - 1}} \sum_{i=1}^{n} (X_i - \hat{\Theta}_n)^2$ (the random variable of unbiased variance of the sample), then the sample mean variance is $\hat{S}_i^2 \over n$, and
+$$
+T_n = {{\hat{\Theta}_n - \theta} \over \sqrt{{\hat{S}_n^2 \over n}}} = {{\sqrt{n}(\hat{\Theta}_n - \theta)} \over \hat{S}_n}
+$$
+forms a t-distribution with $n-1$ degrees of freedom.  The distribution does not depend on $\theta$ or $\sigma$, so it is useful for estimating the confidence interval of the sample mean.
+
+In linear regression, the coefficients are assumed to follow a t-distribution (unnormalised), because the residuals are assumed to follow t-distribution (unnormalised) and they are linearlly related.  The mean value of the coefficient is assumed to be 0 (the hypothesis), and t value = normalised sample mean, p value = $P(|\text{normalised mean}| > t)$.  If p value is large, it means the coefficient is likely to be 0, so can be ignored.
+
+## Diagnositics of model fitting
+```
+?influence.measure # Full list of all diagnostics
+dfbetas(fit) # The difference in coefficients if you take the data point out, so size = data set size.
+hatvalues(fit) # The influence of each data point on each predicted value, which is a matrix.
+```
+* Cook's distance (of data point i) - the "distance" between estimations when $i$ is included and excluded in creating the model
+
+## Treatment Effect
+Whether a treatment is the cause of change in the mean of treated and control groups.  
+
+## Confidence Interval vs Prediction Interval
+http://blog.minitab.com/blog/adventures-in-statistics/when-should-i-use-confidence-intervals-prediction-intervals-and-tolerance-intervals
+
+## Coefficient of Determination
+http://en.wikipedia.org/wiki/Coefficient_of_determination
+
+$SS_{tot} = \displaystyle\sum_{i=1}^{n} (Y_i - \bar{Y})^2$ --- total sum of squares
+
+$SS_{reg} = \displaystyle\sum_{i=1}^{n} (\hat{Y}_i - \bar{Y})^2$  --- regression sum of squares
+
+$SS_{res} = \displaystyle\sum_{i=1}^{n} (Y_i - \hat{Y}_i)^2$ --- residual sum of square
+
+$SS_{tot} = SS_{reg} + SS_{res}$ --- for linear regressions
+
+$R^2 = {SS_{reg} \over SS_{tot}}$ --- coefficient of determination
+
+Note $R^2 \in [0, 1]$, $0$ means the model is useless (it's not modelling any actual data variance), $1$ means the model is a perfect match for the sample.
+
+## Variance Inflation Factor (VIF)
+http://en.wikipedia.org/wiki/Variance_inflation_factor
+
+Given $n$ features, the VIF of the $i$th feature is
+$$
+1 \over {1 - R_i^2}
+$$
+where $R_i^2$ is the coefficient of determination of the model $X_i \sim . - X_i$ (the model with $X_i$ as outcome and all other features as predictors).
+
+For linear regression, VIF is just $SS_{tot} \over SS_{res}$, so large VIF means feature $X_i$ can be accurately predicted from other features (hence highly correlated with other features), which is bad.
+
+## Nested Model Testing
+To find if a feature should be included in the model
+```
+# Gives the difference in parameter statistics between models, like the confidence interval of feature coefficients.
+anova(fit1, fit2, ...)
+```
+
+### ANOVA (Analysis of Variance)
+http://en.wikipedia.org/wiki/Analysis_of_variance
+
+
+## Generalized Linear Model
+Components
+
+* A probability distribution from the exponential family for the outcome $Y$
+* A linear predictor $\mathbf{\eta} = \mathbf{X\beta}$
+* A link function $E(\mathbf{Y}) = \mathbf{\mu} = g^-1(\mathbf{\eta})$
+
+### Logistic Regression (binary classifier)
+* $Y_i \sim Bernoulli(\mu_i)$
+* Link function is $g(\mu) = \eta = \log{\mu \over {1 - \mu}}$, the log of odds, so $\mu = {e^{\eta} \over {1 + e^{\eta}}}$
+
+So 
+$$
+g(\mu_i) = \log{Pr(Y_i | \mathbf{\beta}, \mathbf{X_i}) \over {1 - Pr(Y_i | \mathbf{\beta}, \mathbf{X_i})}} = \mathbf{X\beta}
+$$
+
+And the likelihood is
+$$
+\prod_{i=1}^{n} \mu_i^{y_i}(1-\mu_i)^{1-y_i} = \exp{\sum_{i=1}^{n} y_i\eta_i} \prod_{i=1}^{n} (1+e^{\eta_i})^-1
+$$
+
+### Poisson Regression (discrete predictor)
+* $Y_i \sim Poisson(\mu_i)$
+* Link function is $g(\mu) = \eta = \log{\mu}$
+
+The likelihood is
+$$
+\prod_{i=1}^{n} {e^{-\mu_i}\mu_i^{y_i} \over {y_i!}} \propto exp{(\sum_{i=1}^{n}y_i\eta_i - \sum_{i=1}^{n} \mu_i)}
+$$
